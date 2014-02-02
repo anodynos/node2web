@@ -1,0 +1,17 @@
+{
+  "name": "node2web",
+  "version": "0.0.1",
+  "description": "Registers browserify-ied nodejs core modules to bower (via their name), to make them easily available to browsers.",
+  "author": "agelos.pikoulas@gmail.com",
+  "license": "MIT",
+  "dependencies": {
+    "browserify": "3.x",
+    "lodash": "*",
+    "q-io": "*",
+    "requestify": "*",
+    "uberscore": "0.0.16",
+    "uglify-js": "2.x",
+    "underscore.string": "*",
+    "when": "2.x"
+  }
+}
