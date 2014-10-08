@@ -58,10 +58,10 @@ DEPS = require './DEPS'
 localRepoPath = (dep)-> "../module_repos/" + if dep then "node2web_#{dep}" else ""
 
 # todo: ask in CLI or some json file ?
-forceVersionTag = true
+forceVersionTag = false
 gitUser = "anodynos"
-gitPassword = ""
-throw "No Password set" if not gitPassword
+gitPassword = null
+throw "No gitPassword set" if not gitPassword
 
 # can't browserify via APIi with {standalone} & streams https://github.com/deepak1556/gulp-browserify/issues/9
 browserifyDep = (dep, options)->
@@ -140,8 +140,8 @@ handleDeps = (deps)->
         if localRepoExists then l.ok "local repo '#{localRepo}' exists"
         else l.warn "local repo '#{localRepo}' NOT exists"
 
-        r.get(remoteRepoApiUrl dep).then(
-          -> # remote exists
+        r.get(remoteRepoApiUrl dep, {auth: username:gitUser, password:gitPassword}).then(
+          (resp)-> # remote exists
             l.ok "Remote repo '#{remoteRepoUrl dep}' exists"
             if localRepoExists
               wLogExec("git fetch -t", cwd: localRepo)
@@ -149,19 +149,23 @@ handleDeps = (deps)->
               qfs.makeTree(localRepoPath()).then ->
                 wLogExec("git clone #{remoteRepoUrl dep}", cwd:localRepoPath())
 
-          -> # remote not exists
-            l.warn "Remote repo '#{remoteRepoUrl dep}' NOT exists - creating it"
-            r.post('https://api.github.com/user/repos', { "name":"node2web_#{dep}"},
-                    {auth: username:gitUser, password:gitPassword}
-            ).then ->
-              l.ok "Remote repo '#{remoteRepoUrl dep}' created"
-              if not localRepoExists
-                qfs.makeTree(localRepo).then ->
-                  wLogExec("""
-                    git init
-                    git remote add origin https://github.com/anodynos/node2web_#{dep}
-                    """, cwd: localRepo).then ->
-                      l.deb "Local repo '#{localRepo}' created."
+          (rej)->
+            if rej.code isnt '404'
+              l.er err = "Unknown github.com API error", rej
+              throw new Error err
+            else # remote not exists
+              l.warn "Remote repo '#{remoteRepoUrl dep}' NOT exists - creating it"
+              r.post('https://api.github.com/user/repos', { "name":"node2web_#{dep}"},
+                      {auth: username:gitUser, password:gitPassword}
+              ).then ->
+                l.ok "Remote repo '#{remoteRepoUrl dep}' created"
+                if not localRepoExists
+                  qfs.makeTree(localRepo).then ->
+                    wLogExec("""
+                      git init
+                      git remote add origin https://github.com/anodynos/node2web_#{dep}
+                      """, cwd: localRepo).then ->
+                        l.deb "Local repo '#{localRepo}' created."
 
           ).then( ->
             l.verbose "local & remote repos should both be in sync for '#{dep}'"
